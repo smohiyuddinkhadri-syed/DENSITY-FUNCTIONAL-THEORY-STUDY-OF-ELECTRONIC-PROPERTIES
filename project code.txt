@@ -1,0 +1,152 @@
+# ==========================================
+# DFT Bioactive Compound Prediction System
+# (Improved Version)
+# ==========================================
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# Scaling
+from sklearn.preprocessing import StandardScaler
+
+# ML Models
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+
+# ------------------------------------------
+# Step 1 : Dataset
+# ------------------------------------------
+
+data = {
+    "HOMO":[-5.2,-6.1,-5.5,-4.8,-5.9,-6.3,-5.0,-5.7,-5.4,-6.0],
+    "LUMO":[-1.8,-2.0,-1.6,-1.2,-1.9,-2.1,-1.5,-1.7,-1.6,-2.2],
+    "Dipole":[2.3,3.1,1.8,2.5,2.9,3.4,2.1,2.7,2.0,3.2],
+    "Activity":[1,0,1,1,0,0,1,0,1,0]
+}
+
+df = pd.DataFrame(data)
+
+# ------------------------------------------
+# Step 2 : DFT Calculations
+# ------------------------------------------
+
+df["Energy_Gap"] = df["LUMO"] - df["HOMO"]
+df["Hardness"] = df["Energy_Gap"] / 2
+df["Softness"] = 1 / df["Hardness"]
+df["Chemical_Potential"] = -(df["HOMO"] + df["LUMO"]) / 2
+df["Electronegativity"] = -df["Chemical_Potential"]
+
+# ------------------------------------------
+# Step 3 : Features & Target
+# ------------------------------------------
+
+X = df[["HOMO","LUMO","Energy_Gap","Dipole"]]
+y = df["Activity"]
+
+# ------------------------------------------
+# Step 4 : Train-Test Split
+# ------------------------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42
+)
+
+# ------------------------------------------
+# Step 5 : Feature Scaling
+# ------------------------------------------
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# ------------------------------------------
+# Step 6 : Models
+# ------------------------------------------
+
+models = {
+    "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+    "SVM": SVC(kernel='rbf', probability=True),
+    "Neural Network": MLPClassifier(hidden_layer_sizes=(10,10), max_iter=2000),
+    "Decision Tree": DecisionTreeClassifier(random_state=42),
+    "KNN": KNeighborsClassifier(n_neighbors=3),
+    "Logistic Regression": LogisticRegression()
+}
+
+# ------------------------------------------
+# Step 7 : Training & Evaluation
+# ------------------------------------------
+
+results = {}
+
+print("\nModel Performance:\n")
+
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    pred = model.predict(X_test)
+
+    acc = accuracy_score(y_test, pred)
+    results[name] = acc
+
+    print(f"{name} Accuracy: {acc:.2f}")
+    print("Confusion Matrix:\n", confusion_matrix(y_test, pred))
+    print("Report:\n", classification_report(y_test, pred))
+    print("-"*50)
+
+# ------------------------------------------
+# Step 8 : Accuracy Visualization
+# ------------------------------------------
+
+plt.figure()
+plt.bar(results.keys(), results.values())
+plt.title("Model Accuracy Comparison")
+plt.xticks(rotation=45)
+plt.ylabel("Accuracy")
+plt.show()
+
+# ------------------------------------------
+# Step 9 : Energy Gap Visualization
+# ------------------------------------------
+
+plt.figure()
+plt.plot(df["Energy_Gap"], marker='o')
+plt.title("Energy Gap Trend")
+plt.xlabel("Compound Index")
+plt.ylabel("Energy Gap")
+plt.show()
+
+# ------------------------------------------
+# Step 10 : Prediction for New Molecule
+# ------------------------------------------
+
+# Input: HOMO, LUMO, Dipole
+new_HOMO = -5.3
+new_LUMO = -1.7
+new_Dipole = 2.4
+
+# Calculate Energy Gap
+new_Egap = new_LUMO - new_HOMO
+
+new_data = [[new_HOMO, new_LUMO, new_Egap, new_Dipole]]
+
+# Scale input
+new_data_scaled = scaler.transform(new_data)
+
+# Use best model (Random Forest)
+best_model = models["Random Forest"]
+
+prediction = best_model.predict(new_data_scaled)
+
+print("\nPrediction for New Molecule:")
+
+if prediction[0] == 1:
+    print("Bioactive Compound")
+else:
+    print("Inactive Compound")
